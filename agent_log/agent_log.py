@@ -226,7 +226,7 @@ def analyze_errors(state: LogAnalyzerState) -> LogAnalyzerState:
     )
 
     # Invoke the LLM with structured output parsing
-    result = llm.invoke(formatted_prompt)
+    result = llm(formatted_prompt)  # Call the LLM directly
 
     # Parse the result
     try:

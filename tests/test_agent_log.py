@@ -135,9 +135,10 @@ def test_analyze_phrases(mock_llm):
 
 
 # Test `analyze_errors`
-@patch("agent_log.agent_log.llm.invoke")
-def test_analyze_errors(mock_llm_invoke):
-    mock_llm_invoke.return_value = MagicMock(content=MOCK_ERROR_ANALYSIS_RESPONSE)
+@patch("agent_log.agent_log.llm")
+def test_analyze_errors(mock_llm):
+    # Mock the LLM response
+    mock_llm.return_value = MagicMock(content=MOCK_ERROR_ANALYSIS_RESPONSE)
 
     state: LogAnalyzerState = {
         "log_content": SAMPLE_LOG_CONTENT,
