@@ -3,8 +3,9 @@ import json
 import argparse
 import os
 from typing import Dict, List, TypedDict
+from loguru import logger
 from pydantic import BaseModel, Field, ValidationError
-from dotenv import load_dotenv  # Import dotenv
+from dotenv import load_dotenv
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
@@ -189,12 +190,12 @@ def analyze_phrases(state: LogAnalyzerState) -> LogAnalyzerState:
             "frequent_phrases": [p.model_dump() for p in parsed_result.frequent_phrases],
         }
     except ValidationError as e:
-        print(f"Validation error parsing phrase analysis: {e}")
-        print(f"Raw response: {result.content}")
+        logger.error(f"Validation error parsing phrase analysis: {e}")
+        logger.info(f"Raw response: {result.content}")
         return {**state, "frequent_phrases": []}
     except Exception as e:
-        print(f"Error parsing phrase analysis: {e}")
-        print(f"Raw response: {result.content}")
+        logger.error(f"Error parsing phrase analysis: {e}")
+        logger.info(f"Raw response: {result.content}")
         return {**state, "frequent_phrases": []}
 
 
@@ -235,20 +236,18 @@ def analyze_errors(state: LogAnalyzerState) -> LogAnalyzerState:
     # Format the prompt with our error messages
     formatted_prompt = prompt.format(errors="\n".join(error_messages))
 
-    # Invoke the LLM with structured output parsing
     result = llm(formatted_prompt)  # Call the LLM directly
 
-    # Parse the result
     try:
         parsed_result = parser.parse(result.content)
         return {**state, "common_errors": [e.model_dump() for e in parsed_result.common_errors]}
     except ValidationError as e:
-        print(f"Validation error parsing error analysis: {e}")
-        print(f"Raw response: {result.content}")
+        logger.error(f"Validation error parsing error analysis: {e}")
+        logger.info(f"Raw response: {result.content}")
         return {**state, "common_errors": []}
     except Exception as e:
-        print(f"Error parsing error analysis: {e}")
-        print(f"Raw response: {result.content}")
+        logger.error(f"Error parsing error analysis: {e}")
+        logger.info(f"Raw response: {result.content}")
         return {**state, "common_errors": []}
 
 
@@ -341,32 +340,33 @@ def analyze_log_file(file_path: str):
         return report, formatted_report
     except FileNotFoundError as e:
         error_msg = f"Error Log file does not exist at {file_path}: {str(e)}"
-        print(error_msg)
+        logger.error(error_msg)
         raise
     except Exception as e:
         error_msg = f"Error analyzing log file: {str(e)}"
-        print(error_msg)
+        logger.error(error_msg)
         raise
 
 
 if __name__ == "__main__":
+    logger.info("Reading input parameters")
     parser = argparse.ArgumentParser(description="AI Agent Log Analyzer")
     parser.add_argument("log_file", help="Path to the log file")
     parser.add_argument("--output", "-o", help="Output file for formatted report")
     parser.add_argument("--json", "-j", help="JSON output file for structured data")
 
     args = parser.parse_args()
-
+    logger.info("Starting log file analysis")
     report, formatted_report = analyze_log_file(args.log_file)
 
     if args.json:
         with open(args.json, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
-        print(f"Structured report saved to {args.json}")
+        logger.success(f"Structured report saved to {args.json}")
 
     if args.output:
         with open(args.output, "w", encoding="utf-8") as f:
             f.write(formatted_report)
-        print(f"Formatted report saved to {args.output}")
+        logger.success(f"Formatted report saved to {args.output}")
     else:
-        print("\n" + formatted_report)
+        logger.success("\n" + formatted_report)
