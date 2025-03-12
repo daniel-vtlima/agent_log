@@ -1,13 +1,17 @@
 import re
 import json
 import argparse
+import os
 from typing import Dict, List, TypedDict
 from pydantic import BaseModel, Field, ValidationError
+from dotenv import load_dotenv  # Import dotenv
 
 from langchain_core.prompts import ChatPromptTemplate 
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, END
+
+load_dotenv()
 
 # Define Pydantic models for structured outputs
 class LogSummary(BaseModel):
@@ -46,7 +50,11 @@ class LogAnalyzerState(TypedDict):
     final_report: Dict
 
 # Initialize LLM - using GPT-4o
-llm = ChatOpenAI(model="gpt-4o", temperature=0)
+llm = ChatOpenAI(
+    model="gpt-4o",
+    temperature=0,
+    openai_api_key=os.getenv("OPENAI_API_KEY")  # Use the API key from .env
+)
 
 def validate_input(log_content: str) -> bool:
     """
@@ -67,7 +75,6 @@ def filter_content(text: str) -> str:
     """
     Filter out inappropriate content from the text.
     """
-    # Example: Filter out profanity (this is a simple example, consider using a library for comprehensive filtering)
     inappropriate_words = ["badword1", "badword2"]  # Add your list of inappropriate words
     for word in inappropriate_words:
         text = re.sub(r'\b' + re.escape(word) + r'\b', '***', text, flags=re.IGNORECASE)
@@ -170,7 +177,7 @@ def analyze_phrases(state: LogAnalyzerState) -> LogAnalyzerState:
     # Parse the result
     try:
         parsed_result = parser.parse(result.content)
-        return {**state, "frequent_phrases": [p.dict() for p in parsed_result.frequent_phrases]}
+        return {**state, "frequent_phrases": [p.model_dump() for p in parsed_result.frequent_phrases]}
     except ValidationError as e:
         print(f"Validation error parsing phrase analysis: {e}")
         print(f"Raw response: {result.content}")
@@ -225,7 +232,7 @@ def analyze_errors(state: LogAnalyzerState) -> LogAnalyzerState:
     # Parse the result
     try:
         parsed_result = parser.parse(result.content)
-        return {**state, "common_errors": [e.dict() for e in parsed_result.common_errors]}
+        return {**state, "common_errors": [e.model_dump() for e in parsed_result.common_errors]}
     except ValidationError as e:
         print(f"Validation error parsing error analysis: {e}")
         print(f"Raw response: {result.content}")
