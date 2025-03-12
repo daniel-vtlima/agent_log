@@ -6,7 +6,7 @@ from typing import Dict, List, TypedDict
 from pydantic import BaseModel, Field, ValidationError
 from dotenv import load_dotenv  # Import dotenv
 
-from langchain_core.prompts import ChatPromptTemplate 
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, END
@@ -19,23 +19,28 @@ class LogSummary(BaseModel):
     error_count: int = Field(description="Number of ERROR messages")
     warning_count: int = Field(description="Number of WARNING messages")
 
+
 class PhraseFrequency(BaseModel):
     phrase: str = Field(description="The exact phrase or response pattern")
     count: int = Field(description="Approximate frequency of this phrase in responses")
+
 
 class PhraseAnalysisResult(BaseModel):
     frequent_phrases: List[PhraseFrequency] = Field(
         description="List of frequently occurring phrases in agent responses"
     )
 
+
 class ErrorFrequency(BaseModel):
     error_type: str = Field(description="Type or category of error")
     count: int = Field(description="Approximate frequency of this error")
+
 
 class ErrorAnalysisResult(BaseModel):
     common_errors: List[ErrorFrequency] = Field(
         description="List of common error types with their frequencies"
     )
+
 
 # Define graph state as TypedDict
 class LogAnalyzerState(TypedDict):
@@ -49,12 +54,14 @@ class LogAnalyzerState(TypedDict):
     common_errors: List[Dict]
     final_report: Dict
 
+
 # Initialize LLM - using GPT-4o
 llm = ChatOpenAI(
     model="gpt-4o",
     temperature=0,
-    openai_api_key=os.getenv("OPENAI_API_KEY")  # Use the API key from .env
+    openai_api_key=os.getenv("OPENAI_API_KEY"),  # Use the API key from .env
 )
+
 
 def validate_input(log_content: str) -> bool:
     """
@@ -65,11 +72,12 @@ def validate_input(log_content: str) -> bool:
         return False
 
     # Check for common log patterns
-    log_pattern = r'\[(.*?)\] (INFO|ERROR|WARNING) - (.*)'
+    log_pattern = r"\[(.*?)\] (INFO|ERROR|WARNING) - (.*)"
     if not re.search(log_pattern, log_content):
         return False
 
     return True
+
 
 def filter_content(text: str) -> str:
     """
@@ -77,9 +85,10 @@ def filter_content(text: str) -> str:
     """
     inappropriate_words = ["badword1", "badword2"]  # Add your list of inappropriate words
     for word in inappropriate_words:
-        text = re.sub(r'\b' + re.escape(word) + r'\b', '***', text, flags=re.IGNORECASE)
+        text = re.sub(r"\b" + re.escape(word) + r"\b", "***", text, flags=re.IGNORECASE)
 
     return text
+
 
 def parse_logs(state: LogAnalyzerState) -> LogAnalyzerState:
     """
@@ -90,7 +99,7 @@ def parse_logs(state: LogAnalyzerState) -> LogAnalyzerState:
     if not validate_input(log_content):
         raise ValueError("Invalid log content")
 
-    log_pattern = r'\[(.*?)\] (INFO|ERROR|WARNING) - (.*)'
+    log_pattern = r"\[(.*?)\] (INFO|ERROR|WARNING) - (.*)"
 
     info_messages = []
     error_messages = []
@@ -120,7 +129,7 @@ def parse_logs(state: LogAnalyzerState) -> LogAnalyzerState:
     log_summary = {
         "info_count": len(info_messages),
         "error_count": len(error_messages),
-        "warning_count": len(warning_messages)
+        "warning_count": len(warning_messages),
     }
 
     return {
@@ -129,8 +138,9 @@ def parse_logs(state: LogAnalyzerState) -> LogAnalyzerState:
         "error_messages": error_messages,
         "warning_messages": warning_messages,
         "agent_responses": agent_responses,
-        "log_summary": log_summary
+        "log_summary": log_summary,
     }
+
 
 def analyze_phrases(state: LogAnalyzerState) -> LogAnalyzerState:
     """
@@ -163,20 +173,21 @@ def analyze_phrases(state: LogAnalyzerState) -> LogAnalyzerState:
 
     prompt = ChatPromptTemplate.from_template(
         template=template,
-        partial_variables={"format_instructions": parser.get_format_instructions()}
+        partial_variables={"format_instructions": parser.get_format_instructions()},
     )
 
     # Format the prompt with our responses
-    formatted_prompt = prompt.format(
-        responses="\n".join(agent_responses)
-    )
+    formatted_prompt = prompt.format(responses="\n".join(agent_responses))
 
     # Invoke the LLM with structured output parsing
     result = llm(formatted_prompt)  # Call the LLM directly
 
     try:
         parsed_result = parser.parse(result.content)
-        return {**state, "frequent_phrases": [p.model_dump() for p in parsed_result.frequent_phrases]}
+        return {
+            **state,
+            "frequent_phrases": [p.model_dump() for p in parsed_result.frequent_phrases],
+        }
     except ValidationError as e:
         print(f"Validation error parsing phrase analysis: {e}")
         print(f"Raw response: {result.content}")
@@ -185,6 +196,7 @@ def analyze_phrases(state: LogAnalyzerState) -> LogAnalyzerState:
         print(f"Error parsing phrase analysis: {e}")
         print(f"Raw response: {result.content}")
         return {**state, "frequent_phrases": []}
+
 
 def analyze_errors(state: LogAnalyzerState) -> LogAnalyzerState:
     """
@@ -217,13 +229,11 @@ def analyze_errors(state: LogAnalyzerState) -> LogAnalyzerState:
 
     prompt = ChatPromptTemplate.from_template(
         template=template,
-        partial_variables={"format_instructions": parser.get_format_instructions()}
+        partial_variables={"format_instructions": parser.get_format_instructions()},
     )
 
     # Format the prompt with our error messages
-    formatted_prompt = prompt.format(
-        errors="\n".join(error_messages)
-    )
+    formatted_prompt = prompt.format(errors="\n".join(error_messages))
 
     # Invoke the LLM with structured output parsing
     result = llm(formatted_prompt)  # Call the LLM directly
@@ -241,6 +251,7 @@ def analyze_errors(state: LogAnalyzerState) -> LogAnalyzerState:
         print(f"Raw response: {result.content}")
         return {**state, "common_errors": []}
 
+
 def generate_report(state: LogAnalyzerState) -> LogAnalyzerState:
     """
     Generate the final report combining all analysis results.
@@ -248,10 +259,11 @@ def generate_report(state: LogAnalyzerState) -> LogAnalyzerState:
     report = {
         "log_summary": state["log_summary"],
         "frequent_phrases": state["frequent_phrases"],
-        "common_errors": state["common_errors"]
+        "common_errors": state["common_errors"],
     }
 
     return {**state, "final_report": report}
+
 
 def create_workflow():
     """Create the LangGraph workflow."""
@@ -270,6 +282,7 @@ def create_workflow():
     workflow.set_entry_point("parse_logs")
 
     return workflow.compile()
+
 
 def format_report(report: Dict) -> str:
     """Format the structured report for human readability."""
@@ -295,10 +308,11 @@ def format_report(report: Dict) -> str:
 
     return output
 
+
 def analyze_log_file(file_path: str):
     """Analyze a log file and return structured and formatted reports."""
     try:
-        with open(file_path, 'r', encoding="utf-8") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             log_content = f.read()
 
         # Initialize state
@@ -311,7 +325,7 @@ def analyze_log_file(file_path: str):
             "log_summary": {},
             "frequent_phrases": [],
             "common_errors": [],
-            "final_report": {}
+            "final_report": {},
         }
 
         # Run the workflow
@@ -334,6 +348,7 @@ def analyze_log_file(file_path: str):
         print(error_msg)
         raise
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI Agent Log Analyzer")
     parser.add_argument("log_file", help="Path to the log file")
@@ -345,12 +360,12 @@ if __name__ == "__main__":
     report, formatted_report = analyze_log_file(args.log_file)
 
     if args.json:
-        with open(args.json, 'w', encoding="utf-8") as f:
+        with open(args.json, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
         print(f"Structured report saved to {args.json}")
 
     if args.output:
-        with open(args.output, 'w', encoding="utf-8") as f:
+        with open(args.output, "w", encoding="utf-8") as f:
             f.write(formatted_report)
         print(f"Formatted report saved to {args.output}")
     else:

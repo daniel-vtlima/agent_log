@@ -49,7 +49,6 @@ MOCK_WORKFLOW_RESULT = {
 }
 
 
-
 # Test `validate_input`
 def test_validate_input_valid():
     assert validate_input(SAMPLE_LOG_CONTENT) is True
@@ -211,6 +210,7 @@ def test_analyze_log_file_success(mock_create_workflow):
         assert "INFO messages: 2" in formatted_report
         assert "Hello, how can I help you?" in formatted_report
         assert "Failed to process request" in formatted_report
+
 
 def test_analyze_log_file_file_not_found():
     with pytest.raises(FileNotFoundError) as e:
