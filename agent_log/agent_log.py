@@ -172,9 +172,8 @@ def analyze_phrases(state: LogAnalyzerState) -> LogAnalyzerState:
     )
 
     # Invoke the LLM with structured output parsing
-    result = llm.invoke(formatted_prompt)
+    result = llm(formatted_prompt)  # Call the LLM directly
 
-    # Parse the result
     try:
         parsed_result = parser.parse(result.content)
         return {**state, "frequent_phrases": [p.model_dump() for p in parsed_result.frequent_phrases]}
@@ -326,11 +325,14 @@ def analyze_log_file(file_path: str):
         formatted_report = format_report(report)
 
         return report, formatted_report
-
+    except FileNotFoundError as e:
+        error_msg = f"Error Log file does not exist at {file_path}: {str(e)}"
+        print(error_msg)
+        raise
     except Exception as e:
         error_msg = f"Error analyzing log file: {str(e)}"
         print(error_msg)
-        return {"error": error_msg}, error_msg
+        raise
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI Agent Log Analyzer")
