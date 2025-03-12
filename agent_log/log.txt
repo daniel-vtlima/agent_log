@@ -1,0 +1,3 @@
+[2025-02-20 14:32:10] INFO - Agent Response: "Hello! How can I help you today?"
+[2025-02-20 14:33:15] ERROR - Model Timeout after 5000ms
+[2025-02-20 14:34:02] INFO - Agent Response: "I'm sorry, I didn't understand that."
